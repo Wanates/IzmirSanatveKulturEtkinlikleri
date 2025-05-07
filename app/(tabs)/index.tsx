@@ -1,74 +1,163 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { useState, useEffect } from "react";
+import {
+  View,
+  FlatList,
+  ActivityIndicator,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  Image,
+  Dimensions,
+  useWindowDimensions,
+  Platform,
+} from "react-native";
+import axios from "axios";
+import { Event } from "@/types/event";
+import EventCard from "@/components/EventCard";
+import { COLORS, SPACING, TEXT_STYLES, SHADOWS } from "@/constants/theme";
+import LottieView from "lottie-react-native";
+import React from "react";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const API_URL = "https://openapi.izmir.bel.tr/api/ibb/kultursanat/etkinlikler";
 
-export default function HomeScreen() {
+export default function AnaSayfa() {
+  const [etkinlikler, setEtkinlikler] = useState<Event[]>([]);
+  const [yukleniyor, setYukleniyor] = useState(true);
+  const [yenileniyor, setYenileniyor] = useState(false);
+  const { width: ekranGenisligi } = useWindowDimensions();
+  const kartGenisligi = ekranGenisligi - 32;
+
+  const etkinlikleriGetir = async () => {
+    try {
+      const yanit = await axios.get<Event[]>(API_URL);
+      setEtkinlikler(yanit.data);
+    } catch (hata) {
+      console.error("Etkinlikler yüklenirken hata:", hata);
+    } finally {
+      setYukleniyor(false);
+      setYenileniyor(false);
+    }
+  };
+
+  const yenile = () => {
+    setYenileniyor(true);
+    etkinlikleriGetir();
+  };
+
+  useEffect(() => {
+    etkinlikleriGetir();
+  }, []);
+
+  const KarsilamaBanner = () => (
+    <View style={stiller.karsilamaKutusu}>
+      <Image
+        source={require("@/assets/images/izmir-logo.png")}
+        style={[
+          stiller.logo,
+          {
+            width: ekranGenisligi * 0.7,
+            height: ekranGenisligi * 0.7 * 0.35,
+          },
+        ]}
+        resizeMode="contain"
+      />
+      <LottieView
+        source={require("../../assets/animation/animation.json")}
+        style={stiller.animasyon}
+        autoPlay
+      />
+
+      <Text style={stiller.karsilamaBaslik}>İZMİR ETKİNLİKLERİ</Text>
+      <Text style={stiller.karsilamaAltBaslik}>
+        Şehrin Kültür ve Sanat Etkinliklerini Keşfedin
+      </Text>
+    </View>
+  );
+
+  if (yukleniyor) {
+    return (
+      <View style={stiller.yukleniyorKutu}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={stiller.kapsayici}>
+      <FlatList
+        data={etkinlikler}
+        key="tek-sutun"
+        keyExtractor={(item, index) => `etkinlik_${item.Id}_${index}`}
+        renderItem={({ item }) => (
+          <EventCard
+            etkinlik={item}
+            stil={{
+              width: ekranGenisligi - 16,
+              marginBottom: SPACING.sm,
+              height: 120,
+            }}
+            resimStili={{
+              width: 120,
+              height: "100%",
+            }}
+            yatay={true}
+          />
+        )}
+        contentContainerStyle={stiller.listeIcerik}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews={true}
+        ListHeaderComponent={KarsilamaBanner}
+        stickyHeaderIndices={[0]}
+        refreshControl={
+          <RefreshControl refreshing={yenileniyor} onRefresh={yenile} />
+        }
+      />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+const stiller = StyleSheet.create({
+  kapsayici: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  yukleniyorKutu: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  listeIcerik: {
+    padding: SPACING.sm,
+    paddingBottom: SPACING.xl,
+    backgroundColor: COLORS.background,
+  },
+  karsilamaKutusu: {
+    backgroundColor: COLORS.white,
+    padding: SPACING.lg,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    ...SHADOWS.small,
+  },
+  logo: {
+    marginBottom: 16,
+  },
+  karsilamaBaslik: {
+    ...TEXT_STYLES.h2,
+    color: COLORS.darkGray,
+    marginBottom: SPACING.sm,
+    textAlign: "center",
+  },
+  karsilamaAltBaslik: {
+    ...TEXT_STYLES.subtitle,
+    color: COLORS.gray,
+    textAlign: "center",
+  },
+  animasyon: {
+    textAlign: "center",
+    justifyContent: "center",
+    height: 100,
+    width: 100,
   },
 });
