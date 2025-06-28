@@ -25,9 +25,6 @@ export default function SekmeDuzeni() {
             },
           }),
         },
-        sceneContainerStyle: {
-          backgroundColor: COLORS.background,
-        },
       }}
     >
       <Tabs.Screen
